@@ -1,0 +1,145 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#2024-03-05 Trash Wheel Collection 
+
+```{r setup}
+library(tidyverse)
+library(tidytuesdayR)
+library(tidymodels) 
+```
+
+```{r}
+data <- tidytuesdayR::tt_load('2024-03-05')
+```
+```{r}
+trashwheel <- data$trashwheel
+```
+
+```{r}
+glimpse(trashwheel)
+```
+
+```{r}
+summary(trashwheel)
+```
+```{r}
+colnames(trashwheel)
+```
+
+```{r}
+trashwheel |> count(ID, sort = T)
+trashwheel |> count(Name, sort = T)
+trashwheel |> count(Month, sort = T)
+trashwheel |> count(Year, sort = T)
+trashwheel |> count(Date, sort = T)
+```
+
+```{r}
+trashwheel_df <- trashwheel |> 
+  drop_na(Year) |>
+  #Formatting date
+  mutate(Date = mdy(Date),
+         Year = year(Date),
+         Month = month(Date)
+  ) |>
+  #Sum by month
+  group_by(ID, Name, Year, Month) |> 
+  summarize(across(Weight:HomesPowered, ~ sum(., na.rm=TRUE))) |>
+  ungroup() |>
+  #Date 
+  mutate(Date=make_date(Year,Month)) |>
+  #Drop columns: Weight, Volume, HomesPowered
+  select(!c(Weight, Volume, HomesPowered)) |>
+  #Pivot longer for visualization
+  pivot_longer(cols = PlasticBottles:SportsBalls,
+               names_to = "type",
+               values_to = "count") |>
+  #Factor and reorder
+  mutate(
+    type = as_factor(type),
+    type = fct_reorder(type, count, .desc=TRUE, .na_rm=TRUE),
+    Name = fct_reorder(Name, count, .desc=FALSE, .na_rm=TRUE)
+  )
+```
+
+```{r}
+trashwheel_df
+```
+```{r}
+#Most Trash Type 
+trashwheel_df |> 
+  group_by(type) |>
+  summarize(total = sum(count)) |> 
+  ungroup()
+
+#Most trash collected by wheel
+trashwheel_df |> 
+  group_by(Name) |>
+  summarise(total = sum(count)) |> 
+  ungroup() |>
+  arrange(desc(total))
+
+#Most trash collected throughout the year
+trashwheel_df |> 
+  group_by(Year) |>
+  summarize(total=sum(count)) |>
+  ungroup() |> 
+  arrange(desc(total))
+
+#Most trash collected throughout the year
+trashwheel_df |> 
+  group_by(type, Month) |>
+  summarize(total=sum(count)) |>
+  ungroup() |>
+  arrange(desc(total))
+```
+
+```{r}
+trashwheel_df |> 
+  ggplot(aes(x=count, y=Name), fill=Name) +
+  geom_boxplot() +
+  scale_x_continuous(trans="log2") +
+  scale_y_discrete() + 
+  facet_wrap(vars(type))
+
+```
+```{r}
+trashwheel_long <- trashwheel |>
+  drop_na(Year) |>
+  #Formatting date
+  mutate(Date = mdy(Date),
+         Year = year(Date),
+         Month = month(Date)
+  ) |>
+  #Sum by month
+  group_by(ID, Name, Year, Month) |> 
+  summarize(across(Weight:HomesPowered, ~ sum(., na.rm=TRUE))) |>
+  ungroup() |>
+  #Date 
+  mutate(Date=make_date(Year,Month)) |>
+  #Drop columns: Weight, Volume, HomesPowered
+  select(!c(Weight, Volume, HomesPowered)) |>
+  #Pivot longer for visualization
+  pivot_longer(cols = PlasticBottles:SportsBalls,
+               names_to = "type",
+               values_to = "count") |>
+  filter(type=="Polystyrene")
+```
+```{r}
+trashwheel_long |>
+  ggplot(aes(Date, count, color=Name)) +
+  geom_line()
+```
+```{r}
+#Plastic Bottles. Trends in trash collected throughout each year. 
+trashwheel_df |>
+  filter(type=="PlasticBottles") |>
+  ggplot(aes(Month, count, fill=Year)) +
+  geom_col(position=position_dodge2()) + 
+  facet_wrap(vars(Name))
+
+```
+

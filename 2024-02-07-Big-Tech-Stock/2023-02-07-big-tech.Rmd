@@ -1,0 +1,90 @@
+---
+title: "#2023-02-07 Big Tech Stock"
+output: html_notebook
+---
+
+```{r setup}
+library(tidyverse)
+library(tidytuesdayR)
+library(tidymodels) 
+```
+
+```{r}
+data <- tidytuesdayR::tt_load('2023-02-07')
+```
+
+```{r}
+stock_prices <- data$big_tech_stock_prices
+companies <- data$big_tech_companies
+```
+
+```{r}
+glimpse(stock_prices)
+```
+
+```{r}
+glimpse(companies)
+```
+
+```{r}
+summary(stock_prices)
+```
+
+```{r}
+last_date <- stock_prices |>
+  group_by(stock_symbol) |>
+  summarize(last_date = max(date))
+
+first_date <- stock_prices |>
+  group_by(stock_symbol) |>
+  summarize(first_date = min(date))
+
+earliest_last_date = min(last_date$last_date)
+
+date_1m = earliest_last_date %m-% months(1)
+date_6m = earliest_last_date %m-% months(6)
+date_12m = earliest_last_date %m-% months(12)
+
+```
+
+```{r}
+trend_1m <- stock_prices |>
+  filter(date <= earliest_last_date & date >= date_1m) |>
+  arrange(stock_symbol, date) |>
+  group_by(stock_symbol) |>
+  summarize(trend_1m = list(close))
+
+trend_6m <- stock_prices |>
+  filter(date <= earliest_last_date & date >= date_6m) |>
+  arrange(stock_symbol, date) |>
+  group_by(stock_symbol) |>
+  summarize(trend_6m = list(close))
+
+trend_12m <- stock_prices |>
+  filter(date <= earliest_last_date & date >= date_12m) |>
+  arrange(stock_symbol, date) |>
+  group_by(stock_symbol) |>
+  summarize(trend_12m = list(close))
+```
+
+```{r}
+values <- stock_prices |>
+  filter(date %in% c(date_1m, date_6m, date_12m)) |>
+  select(stock_symbol, date, close) |>
+  mutate(close = round(close,2)) |>
+  pivot_wider(id_cols=stock_symbol, names_from=date, values_from=close) |>
+  rename(value_12m=2, value_6m=3, value_1m=4)
+
+values
+```
+
+
+
+```{r}
+
+trend_1m %>%
+  filter(stock_symbol=="AAPL") %>%
+  unlist()
+
+```
+
